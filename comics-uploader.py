@@ -4,10 +4,10 @@ from dotenv import load_dotenv
 import random
 
 
-def get_request(link):
+def get_response(link):
     response = requests.get(link)
-    if response.ok:
-        return response.json()
+    response.raise_for_status()
+    return response.json()
 
 
 def fetch_pictures(response):
@@ -15,20 +15,20 @@ def fetch_pictures(response):
     alt = response['alt']
     picname = response['img'].split('/')[-1]
     response = requests.get(response['img'])
-    if response.ok:
-        with open(picname, 'wb') as file:
-            file.write(response.content)
-        return {
-            'name': picname,
-            'description': alt
-        }
+    response.raise_for_status()
+    with open(picname, 'wb') as file:
+        file.write(response.content)
+    return {
+        'name': picname,
+        'description': alt
+    }
 
 
 def get_upload_server(vk_api_url, main_params):
     method = 'photos.getWallUploadServer'
     response = requests.get('{}/{}'.format(vk_api_url, method), params=main_params)
-    if response.ok:
-        return response.json()
+    catch_error(response.json())
+    return response.json()
 
 
 def upload_on_wall(server, picname):
@@ -36,8 +36,8 @@ def upload_on_wall(server, picname):
         upload_url = server['response']['upload_url']
         files = {'photo': file}
         response = requests.post(upload_url, files=files)
-        if response.ok:
-            return response.json()
+        catch_error(response.json())
+        return response.json()
 
 
 def save_photo(loaded_photo, vk_api_url, main_params):
@@ -50,8 +50,8 @@ def save_photo(loaded_photo, vk_api_url, main_params):
         'hash': loaded_photo['hash']
     }
     response = requests.post('{}/{}'.format(vk_api_url, method), params=params)
-    if response.ok:
-        return response.json()
+    catch_error(response.json())
+    return response.json()
 
 
 def make_wall_post(photo, vk_api_url, main_params, msg):
@@ -67,8 +67,13 @@ def make_wall_post(photo, vk_api_url, main_params, msg):
         'attachments': 'photo{}_{}'.format(owner, media_id)
     }
     response = requests.get('{}/{}'.format(vk_api_url, method), params=params)
-    if response.ok:
-        return response.json()
+    catch_error(response.json())
+    return response.json()
+
+
+def catch_error(url_response):
+    if 'error' in url_response:
+        raise requests.exceptions.HTTPError(url_response['error'])
 
 
 if __name__ == '__main__':
@@ -76,28 +81,29 @@ if __name__ == '__main__':
     access_token = os.getenv('VK_ACCESS_TOKEN')
 
     url = 'https://xkcd.com/info.0.json'
-    xkcd_response = get_request(url)
-    total_comics = xkcd_response['num']
-    pic_number = random.choice(range(total_comics))
-    picture = fetch_pictures(get_request('https://xkcd.com/{}/info.0.json'.format(pic_number)))
+    try:
+        xkcd_response = get_response(url)
+        total_comics = xkcd_response['num']
+        pic_number = random.choice(range(total_comics))
+        picture = fetch_pictures(get_response('https://xkcd.com/{}/info.0.json'.format(pic_number)))
 
-    vk_api = 'https://api.vk.com/method/'
-    vk_main_params = {
-        'access_token': access_token,
-        'v': 5.103
-    }
-    upload_server = get_upload_server(vk_api, vk_main_params)
-    uploaded_photo = upload_on_wall(upload_server, picture['name'])
-    saved_photo = save_photo(
-        uploaded_photo,
-        vk_api,
-        vk_main_params
-    )
-    posted_photo = make_wall_post(
-        saved_photo,
-        vk_api,
-        vk_main_params,
-        picture['description']
-    )
-
-    os.remove(picture['name'])
+        vk_api = 'https://api.vk.com/method/'
+        vk_main_params = {
+            'access_token': access_token,
+            'v': 5.103
+        }
+        upload_server = get_upload_server(vk_api, vk_main_params)
+        uploaded_photo = upload_on_wall(upload_server, picture['name'])
+        saved_photo = save_photo(
+            uploaded_photo,
+            vk_api,
+            vk_main_params
+        )
+        posted_photo = make_wall_post(
+            saved_photo,
+            vk_api,
+            vk_main_params,
+            picture['description']
+        )
+    finally:
+        os.remove(picture['name'])
