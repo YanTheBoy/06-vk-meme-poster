@@ -26,18 +26,18 @@ def fetch_pictures(response):
 
 def get_upload_server(vk_api_url, main_params):
     method = 'photos.getWallUploadServer'
-    response = requests.get('{}/{}'.format(vk_api_url, method), params=main_params)
-    catch_error(response.json())
-    return response.json()
+    response = requests.get('{}/{}'.format(vk_api_url, method), params=main_params).json()
+    catch_error(response)
+    return response
 
 
 def upload_on_wall(server, picname):
     with open(picname, 'rb') as file:
         upload_url = server['response']['upload_url']
         files = {'photo': file}
-        response = requests.post(upload_url, files=files)
-        catch_error(response.json())
-        return response.json()
+        response = requests.post(upload_url, files=files).json()
+        catch_error(response)
+        return response
 
 
 def save_photo(loaded_photo, vk_api_url, main_params):
@@ -49,9 +49,9 @@ def save_photo(loaded_photo, vk_api_url, main_params):
         'photo': loaded_photo['photo'],
         'hash': loaded_photo['hash']
     }
-    response = requests.post('{}/{}'.format(vk_api_url, method), params=params)
-    catch_error(response.json())
-    return response.json()
+    response = requests.post('{}/{}'.format(vk_api_url, method), params=params).json()
+    catch_error(response)
+    return response
 
 
 def make_wall_post(photo, vk_api_url, main_params, msg):
@@ -66,9 +66,9 @@ def make_wall_post(photo, vk_api_url, main_params, msg):
         'message': msg,
         'attachments': 'photo{}_{}'.format(owner, media_id)
     }
-    response = requests.get('{}/{}'.format(vk_api_url, method), params=params)
-    catch_error(response.json())
-    return response.json()
+    response = requests.get('{}/{}'.format(vk_api_url, method), params=params).json()
+    catch_error(response)
+    return response
 
 
 def catch_error(url_response):
